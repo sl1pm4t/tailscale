@@ -58,19 +58,22 @@ type todoAddr struct{}
 func (todoAddr) Network() string { return "unused" }
 func (todoAddr) String() string  { return "unused-todoAddr" }
 
-func Quad100Resolver(ctx context.Context, mgr *Manager) func(host string) (netip.Addr, error) {
+// Quad100Resolver sets up a DNS resolver that uses the Quad100Conn to send DNS
+// queries to MagicDNS.
+func Quad100Resolver(ctx context.Context, m *Manager) func(host string) (netip.Addr, error) {
 	return func(host string) (netip.Addr, error) {
 		var r net.Resolver
 		r.PreferGo = true
 		r.Dial = func(ctx context.Context, network, address string) (net.Conn, error) {
 			return &Quad100conn{
 				Ctx:        ctx,
-				DnsManager: mgr,
+				DnsManager: m,
 			}, nil
 		}
 
 		ips, err := r.LookupIP(ctx, "ip4", host)
 		if err != nil {
+			m.logf("dns lookup err: %v", err)
 			return netip.Addr{}, err
 		}
 		if len(ips) == 0 {
